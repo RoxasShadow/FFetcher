@@ -1,0 +1,2 @@
+- Fix accented characters in to_filename (pokèmon => pok mon)
+- Speed up the fetching
