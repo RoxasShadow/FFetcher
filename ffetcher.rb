@@ -21,7 +21,7 @@ require 'nokogiri'
 require 'htmlentities'
 require './string.rb'
 
-VERSION = '0.5'
+VERSION = '0.5.1'
 
 options = { :backup => true, :overwrite => true}
 
