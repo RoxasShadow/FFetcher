@@ -20,7 +20,7 @@ require 'open-uri'
 require 'nokogiri'
 require 'htmlentities'
 
-VERSION = '0.3'
+VERSION = '0.5'
 
 class String
 
@@ -42,7 +42,7 @@ class String
   end
   
   def to_filename(spacer = '_', limit = 255)
-    self.gsub!(/"\/\*?<>|:/, spacer) # denied => "/\*?<>|:
+    self.gsub!(/"\/\*?<>|:/, spacer) # "/\*?<>|: are denied
     self.slice! limit..-1
     self
   end
@@ -61,7 +61,8 @@ class String
   
 end
 
-options = { :backup => true }
+options = { :backup => true, :overwrite => true}
+
 OptionParser.new { |opts|
 	opts.banner = 'Usage: ruby ffetcher.rb [option] [arg]'
 	
@@ -75,6 +76,9 @@ OptionParser.new { |opts|
 	end
 	opts.on '--no-backup', 'Disable backup function and output the fetched data' do |value|
 		options[:backup] = false
+	end
+	opts.on '--no-overwrite', 'Saves only new topics not backupped.' do |value|
+		options[:overwrite] = false
 	end
 }.parse!
 
@@ -112,7 +116,7 @@ pages.each_with_index { |page, i|
   }
   
   if options[:backup]
-    puts 'Downloading section index...'
+    puts "Downloading section index (page #{i+1})..."
     File.open("#{section_name}/index#{i+1}.html", ?w) { |f|
       f.write Nokogiri::HTML(open(page)).to_s
     }
@@ -125,7 +129,7 @@ pages.each_with_index { |page, i|
 
 # Following blocks of code can require *MORE* time and bandwidth usage!
 
-# Getting all the pages of each topic 
+# Getting all the pages of each topic
 topics.each_with_index { |topic, i|
   puts "Fetching topics page: #{i+1}/#{topics.length}..."
   
@@ -149,6 +153,7 @@ if options[:backup]
     Dir::mkdir("#{section_name}/#{topic[:title].to_filename}") unless File.directory? "#{section_name}/#{topic[:title].to_filename}"
     
     topic[:url].each_with_index { |u, i|
+      next if !options[:overwrite] && File.exists?("#{section_name}/#{topic[:title].to_filename}/#{i + 1}.html")
       next unless u.page_exists?
       File.open("#{section_name}/#{topic[:title].to_filename}/#{i + 1}.html", ?w) { |f|
         f.write Nokogiri::HTML(open(u)).to_s
@@ -164,8 +169,13 @@ else
   puts
   puts '----------------------------'
   # Printing all the topics of a section.
+  
   topics.each { |t|
-    p t
+    
+    puts "Date:\t#{t[:date]}"
+    puts "Title:\t#{t[:title]}"
+    puts "URL:\t#{t[:url].join("\n\t")}"
+    puts
   }
   puts '----------------------------'
 end
