@@ -19,47 +19,9 @@ require 'optparse'
 require 'open-uri'
 require 'nokogiri'
 require 'htmlentities'
+require './string.rb'
 
 VERSION = '0.5'
-
-class String
-
-  def strip_html_tags
-    self.gsub(/<("[^"]*"|'[^']*'|[^'">])*>/, '')
-  end
-  
-  def fix_encode # Pok\xE8mon => Pokèmon
-    self.force_encoding 'ISO-8859-1'
-    self.encode 'UTF-8'
-  end
-  
-  def get_last_parentheses # <a href="...">Foo (bar)</a>\n[...](xyz) => xyz
-    scan(/\(([^\)]+)\)/).last.first
-  end
-  
-  def decode_html
-    HTMLEntities.new.decode self
-  end
-  
-  def to_filename(spacer = '_', limit = 255)
-    self.gsub!(/"\/\*?<>|:/, spacer) # "/\*?<>|: are denied
-    self.slice! limit..-1
-    self
-  end
-  
-  def page_exists?(path = '')
-    begin
-      if path.empty?
-        !Nokogiri::HTML(open(self)).to_s.empty?
-      else
-        !Nokogiri::HTML(open(self)).xpath(path).first.to_s.empty?
-      end
-    rescue Exception => e
-      false
-    end
-  end
-  
-end
 
 options = { :backup => true, :overwrite => true}
 
@@ -84,7 +46,10 @@ OptionParser.new { |opts|
 
 abort "Section URL is required. Type `#{File.basename(__FILE__)} -h` for more information." if ARGV.empty?
 section = ARGV[0]
-section_name = Nokogiri::HTML(open(section)).xpath('/html/head/title').to_s.chomp.strip_html_tags.fix_encode.to_filename
+
+tmp = Nokogiri::HTML(open(section))
+section_name = tmp.xpath('/html/head/title').to_s.chomp.strip_html_tags.fix_encode.to_filename
+
 Dir::mkdir(section_name) if options[:backup] && !File.directory?(section_name)
 
 pages = [ section ]
@@ -92,7 +57,7 @@ topics = []
 
 # Getting all the pages of a section
 latest = 30
-page = Nokogiri::HTML(open(section)).xpath('//ul[@class = "pages"]//li').first
+page = tmp.xpath('//ul[@class = "pages"]//li').first
 if !page.nil?
   n = page.to_s.get_last_parentheses.to_i - 1
   for i in 1..n
@@ -105,7 +70,9 @@ end
 pages.each_with_index { |page, i|
   puts "Fetching topics list: #{i+1}/#{pages.length}..."
   
-  Nokogiri::HTML(open(page)).xpath('//h2[@class = "web"]//a').each { |topic|
+  tmp = Nokogiri::HTML(open(page))
+  
+  tmp.xpath('//h2[@class = "web"]//a').each { |topic|
     next if topic['title'].nil?
     
     topics << {
@@ -118,7 +85,7 @@ pages.each_with_index { |page, i|
   if options[:backup]
     puts "Downloading section index (page #{i+1})..."
     File.open("#{section_name}/index#{i+1}.html", ?w) { |f|
-      f.write Nokogiri::HTML(open(page)).to_s
+      f.write tmp.to_s
     }
   end
 }
@@ -131,19 +98,19 @@ pages.each_with_index { |page, i|
 
 # Getting all the pages of each topic
 topics.each_with_index { |topic, i|
-  puts "Fetching topics page: #{i+1}/#{topics.length}..."
-  
-  next unless topic[:url].first.page_exists? '//ul[@class = "pages"]//li'
-  page = Nokogiri::HTML(open(topic[:url].first)).xpath('//ul[@class = "pages"]//li').first
-  
-  latest = 15
-  n = page.to_s.get_last_parentheses.to_i - 1
-  for j in 1..n
-    topic[:url] << "#{topic[:url].first}&st=#{latest}"
-    latest += 15
-  end
+    #puts "Fetching topics page: #{i+1}/#{topics.length}..."
+    
+    next unless topic[:url].first.page_exists? '//ul[@class = "pages"]//li'
+    page = Nokogiri::HTML(open(topic[:url].first)).xpath('//ul[@class = "pages"]//li').first
+    
+    latest = 15
+    n = page.to_s.get_last_parentheses.to_i - 1
+    for j in 1..n
+      topic[:url] << "#{topic[:url].first}&st=#{latest}"
+      latest += 15
+    end
 }
-
+  
 # Backupping
 if options[:backup]
   
