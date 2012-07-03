@@ -1,4 +1,8 @@
+FFetcher
+=========
+
 FFetcher is a backup utility for Forumfree and Forumcommunity platforms.
+
 Just give the URL of a section of the forum and it will fetch, organize and backup all the topics present there.
 
 ```
