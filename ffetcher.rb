@@ -33,7 +33,7 @@ class String
     self.encode 'UTF-8'
   end
   
-  def get_last_parentheses
+  def get_last_parentheses # <a href="...">Foo (bar)</a>\n[...](xyz) => xyz
     scan(/\(([^\)]+)\)/).last.first
   end
   
@@ -41,8 +41,10 @@ class String
     HTMLEntities.new.decode self
   end
   
-  def to_filename
-    self.gsub(/\W/, ' ').gsub(/\  /, '-').gsub(/(-)$/, '').gsub(/^(-)/, '')[0..59]
+  def to_filename(spacer = '_', limit = 255)
+    self.gsub!(/"\/\*?<>|:/, spacer) # denied => "/\*?<>|:
+    self.slice! limit..-1
+    self
   end
   
 end
@@ -66,7 +68,7 @@ OptionParser.new { |opts|
 
 abort "Section URL is required. Type `#{File.basename(__FILE__)} -h` for more information." if ARGV.empty?
 section = ARGV[0]
-section_name = Nokogiri::HTML(open(section)).xpath('/html/head/title').to_s.strip_html_tags.chomp.to_filename
+section_name = Nokogiri::HTML(open(section)).xpath('/html/head/title').to_s.chomp.strip_html_tags.fix_encode.to_filename
 
 pages = [ section ]
 topics = []
@@ -86,9 +88,10 @@ end
 pages.each { |page|
   Nokogiri::HTML(open(page)).xpath('//h2[@class = "web"]//a').each { |topic|
     next if topic['title'].nil?
+    
     topics << {
       :date   => topic['title'].gsub(/This topic was started: /, ''),
-      :title  => topic.inner_html.fix_encode.decode_html.strip_html_tags,
+      :title  => topic.inner_html.chomp.strip_html_tags.fix_encode,
       :url    => [ topic['href'] ]
     }
   }
@@ -102,25 +105,24 @@ pages.each { |page|
 
 # Getting all the pages of each topic 
 topics.each { |topic|
-  latest = 15
   page = Nokogiri::HTML(open(topic[:url].first)).xpath('//ul[@class = "pages"]//li').first
-  if !page.nil?
-    n = page.to_s.get_last_parentheses.to_i - 1
-    topic_pages = []
-    for i in 1..n
-      topic_pages << "#{topic[:url].first}&st=#{latest}"
-      latest += 15
-    end
-    topic[:url] += topic_pages
+  next if page.nil?
+  
+  latest = 15
+  n = page.to_s.get_last_parentheses.to_i - 1
+  for i in 1..n
+    topic[:url] << "#{topic[:url].first}&st=#{latest}"
+    latest += 15
   end
 }
 
+# Backupping
 if options[:backup]
-  # Backupping
   Dir::mkdir("#{section_name}") unless File.directory? "#{section_name}"
   
   topics.each { |topic|
     Dir::mkdir("#{section_name}/#{topic[:title].to_filename}") unless File.directory? "#{section_name}/#{topic[:title].to_filename}"
+    
     topic[:url].each_with_index { |u, i|
       File.open("#{section_name}/#{topic[:title].to_filename}/#{i + 1}.html", ?w) { |f|
         f.write Nokogiri::HTML(open(u)).to_s
