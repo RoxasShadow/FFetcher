@@ -23,7 +23,7 @@ require './string.rb'
 
 VERSION = '0.5.1'
 
-options = { :backup => true, :overwrite => true}
+options = { :backup => true, :overwrite => true }
 
 OptionParser.new { |opts|
 	opts.banner = 'Usage: ruby ffetcher.rb [option] [arg]'
@@ -36,10 +36,10 @@ OptionParser.new { |opts|
 		puts VERSION
 		exit
 	end
-	opts.on '--no-backup', 'Disable backup function and output the fetched data' do |value|
+	opts.on '--no-backup', 'Disable backup function and output the fetched data' do
 		options[:backup] = false
 	end
-	opts.on '--no-overwrite', 'Saves only new topics not backupped.' do |value|
+	opts.on '--no-overwrite', 'Saves only new topics not backupped.' do
 		options[:overwrite] = false
 	end
 }.parse!
@@ -60,7 +60,7 @@ latest = 30
 page = tmp.xpath('//ul[@class = "pages"]//li').first
 if !page.nil?
   n = page.to_s.get_last_parentheses.to_i - 1
-  for i in 1..n
+  1.upto(n) do
     pages << "#{section}&st=#{latest}"
     latest += 30
   end
@@ -83,6 +83,7 @@ pages.each_with_index { |page, i|
   }
   
   if options[:backup]
+    next if !options[:overwrite] && File.exists?("#{section_name}/index#{i+1}.html")
     puts "Downloading section index (page #{i+1})..."
     File.open("#{section_name}/index#{i+1}.html", ?w) { |f|
       f.write tmp.to_s
@@ -96,16 +97,17 @@ pages.each_with_index { |page, i|
 
 # Following blocks of code can require *MORE* time and bandwidth usage!
 
+tmp = []
 # Getting all the pages of each topic
 topics.each_with_index { |topic, i|
-    #puts "Fetching topics page: #{i+1}/#{topics.length}..."
+    puts "Fetching topics page: #{i+1}/#{topics.length}..."
     
     next unless topic[:url].first.page_exists? '//ul[@class = "pages"]//li'
     page = Nokogiri::HTML(open(topic[:url].first)).xpath('//ul[@class = "pages"]//li').first
     
     latest = 15
     n = page.to_s.get_last_parentheses.to_i - 1
-    for j in 1..n
+    1.upto(n) do
       topic[:url] << "#{topic[:url].first}&st=#{latest}"
       latest += 15
     end

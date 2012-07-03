@@ -34,7 +34,10 @@ class String
   end
   
   def to_filename(spacer = '_', limit = 255)
-    self.gsub!(/"\/\*?<>|:/, spacer) # "/\*?<>|: are denied
+    denied = '"/\*?<>|:'
+    denied.each_char { |c|
+      self.gsub!(/#{Regexp.escape(c)}/, spacer)
+    }
     self.slice! limit..-1
     self
   end
