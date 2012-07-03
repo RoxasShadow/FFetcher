@@ -20,7 +20,7 @@ require 'open-uri'
 require 'nokogiri'
 require 'htmlentities'
 
-VERSION = '0.1'
+VERSION = '0.3'
 
 class String
 
@@ -47,6 +47,18 @@ class String
     self
   end
   
+  def page_exists?(path = '')
+    begin
+      if path.empty?
+        !Nokogiri::HTML(open(self)).to_s.empty?
+      else
+        !Nokogiri::HTML(open(self)).xpath(path).first.to_s.empty?
+      end
+    rescue Exception => e
+      false
+    end
+  end
+  
 end
 
 options = { :backup => true }
@@ -69,6 +81,7 @@ OptionParser.new { |opts|
 abort "Section URL is required. Type `#{File.basename(__FILE__)} -h` for more information." if ARGV.empty?
 section = ARGV[0]
 section_name = Nokogiri::HTML(open(section)).xpath('/html/head/title').to_s.chomp.strip_html_tags.fix_encode.to_filename
+Dir::mkdir(section_name) if options[:backup] && !File.directory?(section_name)
 
 pages = [ section ]
 topics = []
@@ -85,7 +98,9 @@ if !page.nil?
 end
 
 # Getting all the topics of a section
-pages.each { |page|
+pages.each_with_index { |page, i|
+  puts "Fetching topics list: #{i+1}/#{pages.length}..."
+  
   Nokogiri::HTML(open(page)).xpath('//h2[@class = "web"]//a').each { |topic|
     next if topic['title'].nil?
     
@@ -95,6 +110,13 @@ pages.each { |page|
       :url    => [ topic['href'] ]
     }
   }
+  
+  if options[:backup]
+    puts 'Downloading section index...'
+    File.open("#{section_name}/index#{i+1}.html", ?w) { |f|
+      f.write Nokogiri::HTML(open(page)).to_s
+    }
+  end
 }
 
 # Do what you want with topics
@@ -104,13 +126,15 @@ pages.each { |page|
 # Following blocks of code can require *MORE* time and bandwidth usage!
 
 # Getting all the pages of each topic 
-topics.each { |topic|
+topics.each_with_index { |topic, i|
+  puts "Fetching topics page: #{i+1}/#{topics.length}..."
+  
+  next unless topic[:url].first.page_exists? '//ul[@class = "pages"]//li'
   page = Nokogiri::HTML(open(topic[:url].first)).xpath('//ul[@class = "pages"]//li').first
-  next if page.nil?
   
   latest = 15
   n = page.to_s.get_last_parentheses.to_i - 1
-  for i in 1..n
+  for j in 1..n
     topic[:url] << "#{topic[:url].first}&st=#{latest}"
     latest += 15
   end
@@ -118,12 +142,14 @@ topics.each { |topic|
 
 # Backupping
 if options[:backup]
-  Dir::mkdir("#{section_name}") unless File.directory? "#{section_name}"
   
-  topics.each { |topic|
+  topics.each_with_index { |topic, i|
+    puts "Downloading topic: #{i+1}/#{topics.length}..."
+    
     Dir::mkdir("#{section_name}/#{topic[:title].to_filename}") unless File.directory? "#{section_name}/#{topic[:title].to_filename}"
     
     topic[:url].each_with_index { |u, i|
+      next unless u.page_exists?
       File.open("#{section_name}/#{topic[:title].to_filename}/#{i + 1}.html", ?w) { |f|
         f.write Nokogiri::HTML(open(u)).to_s
       }
