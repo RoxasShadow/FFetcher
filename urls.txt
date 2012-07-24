@@ -1,0 +1,26 @@
+Main sections are obtained with
+
+  require 'open-uri'
+  require 'nokogiri'
+  Nokogiri::HTML(open("http://*******"forumcommunity.net")).xpath('//h2[@class="web"]//a').each { |u| puts u['href'] }
+  
+Subsections are obtained with
+
+  require 'open-uri'
+  require 'nokogiri'
+  Nokogiri::HTML(open("http://*******"forumcommunity.net")).xpath('//dl[@class="subs"]//dd/a').each { |u| puts u['href'] }
+
+Just paste the upper code lines in IRB or a ruby file and execute.
+
+
+-------------------------------------
+
+ 
+    Main sections
+http://*******"forumcommunity.net/?f=AAAAAAAA
+http://*******"forumcommunity.net/?f=BBBBBBBB
+http://*******"forumcommunity.net/?f=CCCCCCCC
+
+   Subsections
+http://*******"forumcommunity.net/?f=DDDDDDDD
+http://*******"forumcommunity.net/?f=EEEEEEEE
