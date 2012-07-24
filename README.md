@@ -4,6 +4,7 @@ FFetcher
 FFetcher is a backup utility for Forumfree and Forumcommunity platforms.
 
 Just give the URL of a section of the forum and it will fetch, organize and backup all the topics present there.
+
 You can give a file with some URLs for each line too. Lines don't start with 'http' are considered comments and will not be fetched. 
 
 ```
@@ -15,7 +16,9 @@ ruby ffetcher.rb --file    "urls.txt"
 ```
 
 Windows user, please, the way to run Ruby is not hard. Really.
+
 Download the latest RubyInstaller from http://rubyinstaller.org and install it ticking all the box.
+
 So run the Command Prompt and do
 
 ```
